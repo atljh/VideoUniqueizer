@@ -53,6 +53,7 @@ async def send_welcome(message: Message, db):
     )
 
     if message.from_user.id in admins:
+        print(message.from_user.id in admins)
         await message.reply(text='Admin Panel:',
                             reply_markup=admin_panel_keyboard)
 

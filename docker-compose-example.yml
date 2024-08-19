@@ -9,5 +9,6 @@ services:
     restart: always
     volumes:
       - ./path/to/db.db:/app/db.db
+      - ./logs:/app/logs
 
 

@@ -26,3 +26,6 @@ build:
 
 # Полная перезагрузка (пересборка образа и перезапуск контейнера)
 rebuild: stop remove build run
+
+
+.PHONY: run stop remove logs restart build rebuild

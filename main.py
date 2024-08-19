@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 import betterlogging as bl
 from aiogram import Bot, Dispatcher
@@ -19,12 +20,22 @@ from tgbot.filters.admin_filter import admins
 
 def setup_logging():
     log_level = logging.INFO
-    bl.basic_colorized_config(level=log_level)
+    log_format = "%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s"
+    log_file = "/app/logs/bot.log"  # Путь в контейнере
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s",
-    )
+    if not os.path.exists(log_file):
+        with open(log_file, 'w'): pass
+
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(logging.Formatter(log_format))
+
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(log_level)
+    console_handler.setFormatter(logging.Formatter(log_format))
+
+    logging.basicConfig(level=log_level, format=log_format, handlers=[file_handler, console_handler])
+
     logger = logging.getLogger(__name__)
     logger.info("Starting bot")
 

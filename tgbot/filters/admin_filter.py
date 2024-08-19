@@ -4,7 +4,7 @@ from aiogram import types
 from aiogram.filters import Filter
 from aiogram.types import Message
 
-admins = [1993309130, 972847950]  # @nomiss7
+admins = [1993309130, 6770077818]
 chat_id = -0
 
 
