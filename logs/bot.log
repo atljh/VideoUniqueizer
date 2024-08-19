@@ -1,8 +1,0 @@
-main.py:40 #INFO     [2024-08-19 14:20:51,694] - __main__ - Starting bot
-warnings.py:110 #WARNING  [2024-08-19 14:20:51,730] - py.warnings - /app/main.py:56: DeprecationWarning: Passing `parse_mode`, `disable_web_page_preview` or `protect_content` to Bot initializer is deprecated. This arguments will be removed in 3.7.0 version
-Use `default=DefaultBotProperties(...)` instead.
-  bot = Bot(token=config.tg_bot.token, parse_mode=ParseMode.HTML)
-
-dispatcher.py:527 #INFO     [2024-08-19 14:20:52,041] - aiogram.dispatcher - Start polling
-dispatcher.py:341 #INFO     [2024-08-19 14:20:52,055] - aiogram.dispatcher - Run polling for bot @unikalizator_videobot id=7087512010 - 'Уникализатор видео TikTok, Reels, Shorts'
-dispatcher.py:172 #INFO     [2024-08-19 14:22:27,347] - aiogram.event - Update id=293193586 is handled. Duration 1812 ms by bot id=7087512010
