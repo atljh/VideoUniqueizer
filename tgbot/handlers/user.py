@@ -20,8 +20,8 @@ from typing import List
 from tgbot.states.sub_state import UserState
 
 user_router = Router()
-executor = ThreadPoolExecutor(max_workers=3)
-semaphore = asyncio.Semaphore(3)
+executor = ThreadPoolExecutor(max_workers=1)
+semaphore = asyncio.Semaphore(1)
 
 task_queue_count = 0
 CHANNEL_ID = '-1002121661067'
@@ -58,6 +58,10 @@ async def user_start(message: Message, db, dialog_manager: DialogManager, state:
         fullname=message.from_user.first_name or '',
         is_active=True
     )
+
+    user_id = message.from_user.id
+    processing = await db.sql_check_user_processing(user_id)
+
 
     member = await message.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=message.from_user.id)
     if member.status in ['left', 'kicked']:
@@ -154,7 +158,7 @@ async def video_customizing(message: Message, db, dialog_manager: DialogManager,
 
     user_id = message.from_user.id
     processing = await db.sql_check_user_processing(user_id)
-    if processing:
+    if processing == 1:
         await message.answer("Вы уже обрабатываете другое видео. Пожалуйста, подождите, пока оно будет завершено.")
         return
     global task_queue_count

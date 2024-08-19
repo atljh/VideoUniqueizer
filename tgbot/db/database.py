@@ -2,7 +2,6 @@ import aiosqlite
 
 
 class MyDb:
-    # __dbname__ = "/app/db/db.db"
     __dbname__ = "db.db"
 
     async def db_setup(self):
@@ -15,7 +14,7 @@ class MyDb:
                         fullname TEXT,
                         last_public_time DATETIME,
                         is_active BOOLEAN,
-                        processing_video BOOLEAN DEFAULT False
+                        processing_video BOOLEAN DEFAULT 0
                     )
                 """)
 
