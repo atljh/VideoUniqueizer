@@ -1,0 +1,13 @@
+version: '3'
+services:
+  telegram_bot:
+    build: .
+    environment:
+      - BOT_TOKEN=
+      - CHANNEL_URL=
+      - CHANNEL_ID=
+    restart: always
+    volumes:
+      - ./path/to/db.db:/app/db.db
+
+
