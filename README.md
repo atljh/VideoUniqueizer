@@ -21,7 +21,8 @@ Docker
    git clone https://github.com/atljh/VideoUniqueizer.git
    cd VideoUniqueizer
     ```
-##Usage
+
+## Usage
 1. Configure your settings:
 
 Edit the docker-compose.yaml file to adjust the processing settings.
@@ -31,4 +32,12 @@ Edit the docker-compose.yaml file to adjust the processing settings.
     ```
     make build
     make run
+    ```
+3. To check logs run
+    ```
+    make logs
+    ```
+    or
+    ```
+    tail logs/bot.log
     ```
