@@ -28,7 +28,7 @@ Edit the docker-compose.yaml file to adjust the processing settings.
 
 2. Run bot:
 
-        ```
-        make build
-        make run
-        ```
+    ```
+    make build
+    make run
+    ```
