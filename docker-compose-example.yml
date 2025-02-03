@@ -3,12 +3,10 @@ services:
   telegram_bot:
     build: .
     environment:
-      - BOT_TOKEN=
-      - CHANNEL_URL=
-      - CHANNEL_ID=
+      - BOT_TOKEN=${BOT_TOKEN}
+      - CHANNEL_URL=${CHANNEL_URL}
+      - CHANNEL_ID=${CHANNEL_ID}
     restart: always
     volumes:
       - ./path/to/db.db:/app/db.db
       - ./logs:/app/logs
-
-
