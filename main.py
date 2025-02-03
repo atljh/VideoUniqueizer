@@ -7,6 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.client.default import DefaultBotProperties
 from aiogram_dialog import setup_dialogs
 
 from tgbot.config import load_config
@@ -53,8 +54,10 @@ async def main():
 
     config = load_config(".env")
 
-    bot = Bot(token=config.tg_bot.token, parse_mode=ParseMode.HTML)
-
+    bot = Bot(
+        token=config.tg_bot.token,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
     await bot.set_my_commands([
         BotCommand(command="/start", description='Старт')
     ])
