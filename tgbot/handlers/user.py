@@ -18,13 +18,16 @@ import moviepy.video.fx.all as vfx
 from typing import List
 
 from tgbot.states.sub_state import UserState
+from tgbot.config import load_config
+
 
 user_router = Router()
 executor = ThreadPoolExecutor(max_workers=1)
 semaphore = asyncio.Semaphore(1)
+config = load_config(".env")
 
 task_queue_count = 0
-CHANNEL_ID = '-1002121661067'
+CHANNEL_ID = config.tg_bot.channel_id
 
 
 async def check_subscription_handler(callback_query: CallbackQuery, button: Button, dialog_manager: DialogManager):
