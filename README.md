@@ -11,33 +11,59 @@ VideoUniqueizer is a Python-based tool designed to help you process and transfor
 
 ## Prerequisites
 
-Docker
+- Docker
 
 ## Installation
 
 1. **Clone the repository:**
-
-   ```
+   ```sh
    git clone https://github.com/atljh/VideoUniqueizer.git
    cd VideoUniqueizer
-    ```
+   ```
+
+## Configuration
+
+Edit the `.env` file to set up required environment variables:
+```sh
+BOT_TOKEN=your_bot_token
+CHANNEL_URL=your_channel_url
+CHANNEL_ID=your_channel_id
+```
+
+Modify the `docker-compose.yml` file if needed:
+```yaml
+version: '3'
+services:
+  telegram_bot:
+    build: .
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - CHANNEL_URL=${CHANNEL_URL}
+      - CHANNEL_ID=${CHANNEL_ID}
+    restart: always
+    volumes:
+      - ./path/to/db.db:/app/db.db
+      - ./logs:/app/logs
+```
 
 ## Usage
-1. Configure your settings:
 
-Edit the docker-compose.yaml file to adjust the processing settings.
+1. **Build and run the container:**
+   ```sh
+   make build
+   make run
+   ```
 
-2. Run bot:
+2. **Check logs:**
+   ```sh
+   make logs
+   ```
+   or
+   ```sh
+   tail logs/bot.log
+   ```
 
-    ```
-    make build
-    make run
-    ```
-3. To check logs run
-    ```
-    make logs
-    ```
-    or
-    ```
-    tail logs/bot.log
-    ```
+## Contributing
+
+Feel free to contribute by submitting issues or pull requests. Any feedback is appreciated!
+
