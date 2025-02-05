@@ -37,7 +37,7 @@ async def check_subscription_handler(callback_query: CallbackQuery, button: Butt
         await callback_query.message.answer(
             text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. Размер файла не должен '
                  'превышать 20 МБ.</i>')
-    else:
+    else:   
         await callback_query.answer("Подпишитесь, чтобы продолжить.")
 
 

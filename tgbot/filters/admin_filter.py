@@ -1,11 +1,12 @@
 from abc import ABC
 
-from aiogram import types
 from aiogram.filters import Filter
 from aiogram.types import Message
+from tgbot.config import load_config
 
-admins = [1993309130, 6770077818]
-chat_id = -0
+config = load_config()
+
+admins = config.tg_bot.admins_id
 
 
 class IsAdmin(Filter):

@@ -12,6 +12,7 @@ class TgBot:
     token: str
     channel_url: str
     channel_id: int
+    admins_id: list[int]
 
     @staticmethod
     def from_env(env: Env):
@@ -21,7 +22,8 @@ class TgBot:
         token = env.str("BOT_TOKEN")
         channel_url = env.str("CHANNEL_URL")
         channel_id = env.int("CHANNEL_ID")
-        return TgBot(token=token, channel_url=channel_url, channel_id=channel_id)
+        admins_id = list(map(int, env.list("ADMINS_ID")))
+        return TgBot(token=token, channel_url=channel_url, channel_id=channel_id, admins_id=admins_id)
 
 
 @dataclass
