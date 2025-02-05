@@ -1,4 +1,3 @@
-from abc import ABC
 
 from aiogram.filters import Filter
 from aiogram.types import Message

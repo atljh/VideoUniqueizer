@@ -1,5 +1,6 @@
 import asyncio
 import os
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
@@ -177,7 +178,8 @@ async def video_customizing(message: Message, db, dialog_manager: DialogManager,
         return
     try:
         file = await message.bot.get_file(video_file_id)
-    except:
+    except Exception as e:
+        logging.error(e)
         await message.answer("Произошла ошибка при загрузке видео. Пожалуйста, попробуйте снова.")
         return
     await db.sql_set_user_processing(user_id, True)

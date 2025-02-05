@@ -13,7 +13,6 @@ from tgbot.handlers.user import start_dialog
 from tgbot.middlewares.config import ConfigMiddleware
 from tgbot.middlewares.db import DbMiddleware
 from tgbot.db.database import MyDb
-from tgbot.filters.admin_filter import admins
 
 
 def setup_logging():
