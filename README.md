@@ -28,6 +28,7 @@ Edit the `.env` file to set up required environment variables:
 BOT_TOKEN=your_bot_token
 CHANNEL_URL=your_channel_url
 CHANNEL_ID=your_channel_id
+ADMINS_ID=admin ids for your bot, example: 3123789012, 648767821
 ```
 
 Modify the `docker-compose.yml` file if needed:
