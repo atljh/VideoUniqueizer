@@ -1,60 +1,46 @@
 from dataclasses import dataclass
-
 from environs import Env
 
 
 @dataclass
 class TgBot:
     """
-    Creates the TgBot object from environment variables.
+    Represents a Telegram bot configuration.
     """
-
     token: str
     channel_url: str
     channel_id: int
     admins_id: list[int]
 
     @staticmethod
-    def from_env(env: Env):
+    def from_env(env: Env, prefix: str = ""):
         """
-        Creates the TgBot object from environment variables.
+        Loads bot configuration from environment variables with an optional prefix.
         """
-        token = env.str("BOT_TOKEN")
-        channel_url = env.str("CHANNEL_URL")
-        channel_id = env.int("CHANNEL_ID")
-        admins_id = list(map(int, env.list("ADMINS_ID")))
+        token = env.str(f"{prefix}BOT_TOKEN")
+        channel_url = env.str(f"{prefix}CHANNEL_URL")
+        channel_id = env.int(f"{prefix}CHANNEL_ID")
+        admins_id = list(map(int, env.list(f"{prefix}ADMINS_ID")))
+
         return TgBot(token=token, channel_url=channel_url, channel_id=channel_id, admins_id=admins_id)
 
 
 @dataclass
 class Config:
     """
-    The main configuration class that integrates all the other configuration classes.
-
-    This class holds the other configuration classes, providing a centralized point of access for all settings.
-
-    Attributes
-    ----------
-    tg_bot : TgBot
-        Holds the settings related to the Telegram Bot.
+    The main configuration class that stores multiple bot configurations.
     """
-
-    tg_bot: TgBot
+    bots: list[TgBot]
 
 
 def load_config(path: str = None) -> Config:
     """
-    This function takes an optional file path as input and returns a Config object.
-    :param path: The path of env file from where to load the configuration variables.
-    It reads environment variables from a .env file if provided, else from the process environment.
-    :return: Config object with attributes set as per environment variables.
+    Loads multiple bot configurations from an .env file.
     """
-
-    # Create an Env object.
-    # The Env object will be used to read environment variables.
     env = Env()
     env.read_env(path)
 
-    return Config(
-        tg_bot=TgBot.from_env(env),
-    )
+    bot_count = env.int("BOT_COUNT", 1)  # Количество ботов
+    bots = [TgBot.from_env(env, prefix=f"BOT{i}_") for i in range(1, bot_count + 1)]
+
+    return Config(bots=bots)
