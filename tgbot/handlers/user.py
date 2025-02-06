@@ -9,8 +9,8 @@ from aiogram.filters import CommandStart, ChatMemberUpdatedFilter, MEMBER, KICKE
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ChatMemberUpdated, FSInputFile, CallbackQuery
 from aiogram_dialog import Dialog, DialogManager, Window, StartMode
-from aiogram_dialog.widgets.kbd import Row, Button, Url, Column
-from aiogram_dialog.widgets.text import Const, Format
+from aiogram_dialog.widgets.kbd import Button, Url, Column
+from aiogram_dialog.widgets.text import Const
 
 from aiogram_media_group import media_group_handler, MediaGroupFilter
 
@@ -28,17 +28,26 @@ semaphore = asyncio.Semaphore(1)
 config = load_config(".env")
 
 task_queue_count = 0
-CHANNEL_ID = config.tg_bot.channel_id
+
+
+async def get_channel_id(bot_token):
+    for bot_config in config.bots:
+        if bot_token == bot_config.token:
+            return bot_config.channel_id
+    return None
 
 
 async def check_subscription_handler(callback_query: CallbackQuery, button: Button, dialog_manager: DialogManager):
-    member = await callback_query.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=callback_query.from_user.id)
+    channel_id = await get_channel_id(callback_query.bot.token)
+    if not channel_id:
+        return
+    member = await callback_query.bot.get_chat_member(chat_id=channel_id, user_id=callback_query.from_user.id)
     if member.status not in ['left', 'kicked']:
         await dialog_manager.done()
         await callback_query.message.answer(
             text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. Размер файла не должен '
                  'превышать 20 МБ.</i>')
-    else:   
+    else:
         await callback_query.answer("Подпишитесь, чтобы продолжить.")
 
 
@@ -65,9 +74,10 @@ async def user_start(message: Message, db, dialog_manager: DialogManager, state:
 
     user_id = message.from_user.id
     processing = await db.sql_check_user_processing(user_id)
-
-
-    member = await message.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=message.from_user.id)
+    channel_id = await get_channel_id(message.bot.token)
+    if not channel_id:
+        return
+    member = await message.bot.get_chat_member(chat_id=channel_id, user_id=message.from_user.id)
     if member.status in ['left', 'kicked']:
         await state.set_state(UserState.checking_subscription)
         await dialog_manager.start(
@@ -152,13 +162,16 @@ async def handle_album(messages: List[Message]):
 
 @user_router.message(F.video)
 async def video_customizing(message: Message, db, dialog_manager: DialogManager, state: FSMContext):
-    member = await message.bot.get_chat_member(chat_id=CHANNEL_ID, user_id=message.from_user.id)
+    channel_id = await get_channel_id(message.bot.token)
+    if not channel_id:
+        return
+    member = await message.bot.get_chat_member(chat_id=channel_id, user_id=message.from_user.id)
     if member.status in ['left', 'kicked']:
         await state.set_state(UserState.checking_subscription)
         await dialog_manager.start(
             state=UserState.checking_subscription, mode=StartMode.RESET_STACK
         )
-        return 
+        return
 
     user_id = message.from_user.id
     processing = await db.sql_check_user_processing(user_id)
