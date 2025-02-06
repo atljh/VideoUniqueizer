@@ -5,7 +5,7 @@ from tgbot.config import load_config
 
 config = load_config()
 
-admins = config.tg_bot.admins_id
+admins = config.admins_id
 
 
 class IsAdmin(Filter):

@@ -42,5 +42,7 @@ def load_config(path: str = None) -> Config:
 
     bot_count = env.int("BOT_COUNT", 1)  # Количество ботов
     bots = [TgBot.from_env(env, prefix=f"BOT{i}_") for i in range(1, bot_count + 1)]
+    admins_id = list(map(int, env.list("ADMINS_ID", default=[])))
 
-    return Config(bots=bots)
+    return Config(bots=bots, admins_id=admins_id)
+
