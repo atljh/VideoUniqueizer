@@ -44,28 +44,6 @@ async def notify_admins(bot: Bot, admin_ids: list):
             logging.error(f"Не удалось отправить сообщение админу {admin_id}: {e}")
 
 
-async def run_bot(bot_config):
-    bot = Bot(token=bot_config.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher(storage=MemoryStorage())
-
-    await bot.set_my_commands([BotCommand(command="/start", description='Старт')])
-
-    dp.include_routers(start_dialog)
-    dp.include_routers(*routers_list)
-    dp.message.outer_middleware(ConfigMiddleware(bot_config))
-    dp.callback_query.outer_middleware(ConfigMiddleware(bot_config))
-    dp.message.middleware(DbMiddleware())
-    dp.callback_query.middleware(DbMiddleware())
-    dp.my_chat_member.middleware(DbMiddleware())
-
-    setup_dialogs(dp)
-    await MyDb().db_setup()
-    db = MyDb()
-    await db.sql_reset_processing_video()
-    await notify_admins(bot, bot_config.admins_id)
-    await dp.start_polling(bot)
-
-
 async def get_bots(config: dict):
     bots = []
     for bot_config in config.bots:
