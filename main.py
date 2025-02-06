@@ -49,7 +49,7 @@ async def get_bots(config: dict):
     for bot_config in config.bots:
         bot = Bot(token=bot_config.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
         await bot.set_my_commands([BotCommand(command="/start", description='Старт')])
-        await notify_admins(bot, bot_config.admins_id)
+        await notify_admins(bot, config.admins_id)
         bots.append(bot)
     return bots
 
@@ -58,7 +58,7 @@ async def main():
     setup_logging()
     config = load_config(".env")
     bots = await get_bots(config)
-
+    logging.info(config.admins_id)
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_routers(start_dialog)
     dp.include_routers(*routers_list)
