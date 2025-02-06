@@ -18,7 +18,7 @@ from tgbot.db.database import MyDb
 def setup_logging():
     log_level = logging.INFO
     log_format = "%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s"
-    log_file = "/app/logs/bot.log"
+    log_file = "logs/bot.log"
 
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
@@ -66,12 +66,35 @@ async def run_bot(bot_config):
     await dp.start_polling(bot)
 
 
+async def get_bots(config: dict):
+    bots = []
+    for bot_config in config.bots:
+        bot = Bot(token=bot_config.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+        await bot.set_my_commands([BotCommand(command="/start", description='Старт')])
+        await notify_admins(bot, bot_config.admins_id)
+        bots.append(bot)
+    return bots
+
+
 async def main():
     setup_logging()
     config = load_config(".env")
+    bots = await get_bots(config)
 
-    tasks = [run_bot(bot_config) for bot_config in config.bots]
-    await asyncio.gather(*tasks)
+    dp = Dispatcher(storage=MemoryStorage())
+    dp.include_routers(start_dialog)
+    dp.include_routers(*routers_list)
+    dp.message.outer_middleware(ConfigMiddleware(config))
+    dp.callback_query.outer_middleware(ConfigMiddleware(config))
+    dp.message.middleware(DbMiddleware())
+    dp.callback_query.middleware(DbMiddleware())
+    dp.my_chat_member.middleware(DbMiddleware())
+
+    setup_dialogs(dp)
+    await MyDb().db_setup()
+    db = MyDb()
+    await db.sql_reset_processing_video()
+    await dp.start_polling(*bots)
 
 
 if __name__ == "__main__":
