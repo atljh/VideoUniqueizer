@@ -7,7 +7,7 @@ from aiogram.types import BotCommand
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.client.default import DefaultBotProperties
 from aiogram_dialog import setup_dialogs
-from tgbot.config import load_config
+from tgbot.config import load_config, Config
 from tgbot.handlers import routers_list
 from tgbot.handlers.user import start_dialog
 from tgbot.middlewares.config import ConfigMiddleware
@@ -54,12 +54,13 @@ async def get_bots(config: dict):
     return bots
 
 
-async def main():
-    setup_logging()
-    config = load_config(".env")
-    bots = await get_bots(config)
-    logging.info(config.admins_id)
-    dp = Dispatcher(storage=MemoryStorage())
+async def setup_database():
+    await MyDb().db_setup()
+    db = MyDb()
+    await db.sql_reset_processing_video()
+
+
+async def setup_dispatcher(dp: Dispatcher, config: Config):
     dp.include_routers(start_dialog)
     dp.include_routers(*routers_list)
     dp.message.outer_middleware(ConfigMiddleware(config))
@@ -69,9 +70,15 @@ async def main():
     dp.my_chat_member.middleware(DbMiddleware())
 
     setup_dialogs(dp)
-    await MyDb().db_setup()
-    db = MyDb()
-    await db.sql_reset_processing_video()
+
+
+async def main():
+    setup_logging()
+    config = load_config(".env")
+    bots = await get_bots(config)
+    logging.info(config.admins_id)
+    dp = Dispatcher(storage=MemoryStorage())
+
     await dp.start_polling(*bots)
 
 
