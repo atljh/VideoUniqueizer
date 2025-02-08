@@ -8,6 +8,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
+from aiogram.exceptions import TelegramAPIError
 
 from tgbot.filters.admin_filter import IsAdmin, admins
 from tgbot.states.sending_state import SendingState
@@ -122,26 +123,33 @@ async def start_sending(state: FSMContext, db, bot_config, text, photo):
     users = await db.sql_get_users_by_bot(bot_config.token)
     sent_users = 0
     await state.clear()
-    bot = Bot(token=bot_config.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+
     try:
-        for user_id in users:
-            try:
-                if photo == 'skip':
-                    await bot.send_message(chat_id=user_id, text=text)
+        async with Bot(token=bot_config.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML)) as bot:
+            for user_id in users:
+                try:
+                    if photo == 'skip':
+                        await bot.send_message(chat_id=user_id, text=text)
+                    else:
+                        await bot.send_photo(chat_id=user_id, photo=photo, caption=text)
                     sent_users += 1
-                else:
-                    await bot.send_photo(chat_id=user_id, photo=photo, caption=text)
-                    sent_users += 1
-            except Exception as e:
-                logging.error(e)
-            await asyncio.sleep(0.1)
-        for admin in admins:
-            await bot.send_message(chat_id=admin,
-                                   text=f'✅ Розсилка закінчилася успішно!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам.')
+                except TelegramAPIError as e:
+                    logging.error(f"Telegram API Error: {e}")
+                except Exception as e:
+                    logging.error(f"Unexpected error: {e}")
+                await asyncio.sleep(0.1)
+
+            for admin in admins:
+                await bot.send_message(
+                    chat_id=admin,
+                    text=f'✅ Розсилка закінчилася успішно!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам.'
+                )
     except Exception as e:
         for admin in admins:
-            await bot.send_message(chat_id=admin,
-                                   text=f'Помилка при розсилці!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам\nПомилка: {e}')
+            await bot.send_message(
+                chat_id=admin,
+                text=f'Помилка при розсилці!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам\nПомилка: {e}'
+            )
 
 
 @admin_router.message(SendingState.send, F.text == 'Підтвердити')

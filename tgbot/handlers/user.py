@@ -60,7 +60,6 @@ async def check_subscription_handler(callback_query: CallbackQuery, button: Butt
 
 async def create_start_dialog(bot_token):
     channel_url = await get_channel_url(bot_token)
-    logging.info(channel_url)
     return Dialog(
         Window(
             Const("Выберите действие:"),
