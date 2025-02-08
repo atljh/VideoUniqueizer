@@ -160,11 +160,11 @@ async def sending_process(message: Message, state: FSMContext, bot: Bot, db):
             for admin in admins:
                 await bot.send_message(
                     chat_id=admin,
-                    text=f'Помилка при розсилці!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам\nПомилка: {error}'
+                    text=f'Помилка при розсилці!\n{bot_config.username}\n✉️ Було відправлено {sent_users}/{len(users)} користувачам\nПомилка: {error}'
                 )
         else:
             for admin in admins:
                 await bot.send_message(
                     chat_id=admin,
-                    text=f'✅ Розсилка закінчилася успішно!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам.'
+                    text=f'✅ Розсилка закінчилася успішно!\n{bot_config.username}\n✉️ Було відправлено {sent_users}/{len(users)} користувачам.'
                 )
