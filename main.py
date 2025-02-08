@@ -18,7 +18,7 @@ from tgbot.db.database import MyDb
 def setup_logging():
     log_level = logging.INFO
     log_format = "%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s"
-    log_file = "logs/bot.log"
+    log_file = "apps/logs/bot.log"
 
     os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
