@@ -66,7 +66,7 @@ async def send_welcome(message: Message, db):
 
 
 @admin_router.message(IsAdmin(), F.text == "👤 Користувачі")
-async def users(message: Message, db, bot):
+async def get_users(message: Message, db, bot):
     for bot_config in config.bots:
         users = await db.sql_get_users_by_bot(bot_config.token)
         await message.answer(text=f"👥 {bot_config.username}|  {len(users)} корист.")
@@ -138,18 +138,9 @@ async def start_sending(state: FSMContext, db, bot_config, text, photo):
                 except Exception as e:
                     logging.error(f"Unexpected error: {e}")
                 await asyncio.sleep(0.1)
-
-            for admin in admins:
-                await bot.send_message(
-                    chat_id=admin,
-                    text=f'✅ Розсилка закінчилася успішно!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам.'
-                )
+            return sent_users, users, False
     except Exception as e:
-        for admin in admins:
-            await bot.send_message(
-                chat_id=admin,
-                text=f'Помилка при розсилці!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам\nПомилка: {e}'
-            )
+        return sent_users, users, e
 
 
 @admin_router.message(SendingState.send, F.text == 'Підтвердити')
@@ -164,4 +155,16 @@ async def sending_process(message: Message, state: FSMContext, bot: Bot, db):
     photo = user_data.get('photo', 'skip')
 
     for bot_config in config.bots:
-        await start_sending(state, db, bot_config, text, photo)
+        sent_users, users, error = await start_sending(state, db, bot_config, text, photo)
+        if error:
+            for admin in admins:
+                await bot.send_message(
+                    chat_id=admin,
+                    text=f'Помилка при розсилці!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам\nПомилка: {error}'
+                )
+        else:
+            for admin in admins:
+                await bot.send_message(
+                    chat_id=admin,
+                    text=f'✅ Розсилка закінчилася успішно!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам.'
+                )
