@@ -1,8 +1,11 @@
 import asyncio
+import logging
 
 from aiogram import Router, Bot, F
 from aiogram.filters import Command
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
@@ -115,17 +118,11 @@ async def sending_input_photo(message: Message, state: FSMContext):
                                   reply_markup=accept_keyboard)
 
 
-@admin_router.message(SendingState.send, F.text == 'Підтвердити')
-async def sending_process(message: Message, state: FSMContext, bot: Bot, db):
-    await message.reply(text='📬 Розсилка почалась!\n\n❗️ Бот повідомить Вас по завершенню.',
-                        reply_markup=admin_panel_keyboard)
-    users = await db.sql_get_users()
-    all_users = await db.sql_get_all_users()
+async def start_sending(state: FSMContext, db, bot_config, text, photo):
+    users = await db.sql_get_users_by_bot(bot_config.token)
     sent_users = 0
-    user_data = await state.get_data()
-    photo = user_data['photo']
-    text = user_data['text']
     await state.clear()
+    bot = Bot(token=bot_config.token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     try:
         for user_id in users:
             try:
@@ -135,13 +132,28 @@ async def sending_process(message: Message, state: FSMContext, bot: Bot, db):
                 else:
                     await bot.send_photo(chat_id=user_id, photo=photo, caption=text)
                     sent_users += 1
-            except:
-                pass
+            except Exception as e:
+                logging.error(e)
             await asyncio.sleep(0.1)
         for admin in admins:
             await bot.send_message(chat_id=admin,
-                                   text=f'✅ Розсилка закінчилася успішно!\n\n✉️ Було відправлено {sent_users}/{len(all_users)} користувачам.')
+                                   text=f'✅ Розсилка закінчилася успішно!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам.')
     except Exception as e:
         for admin in admins:
             await bot.send_message(chat_id=admin,
-                                   text=f'Помилка при розсилці!\n\n✉️ Було відправлено {sent_users}/{len(all_users)} користувачам\nПомилка: {e}')
+                                   text=f'Помилка при розсилці!\n\n✉️ Було відправлено {sent_users}/{len(users)} користувачам\nПомилка: {e}')
+
+
+@admin_router.message(SendingState.send, F.text == 'Підтвердити')
+async def sending_process(message: Message, state: FSMContext, bot: Bot, db):
+    await message.reply(
+        text='📬 Розсилка почалась!\n\n❗️ Бот повідомить Вас по завершенню.',
+        reply_markup=admin_panel_keyboard
+    )
+    user_data = await state.get_data()
+
+    text = user_data['text']
+    photo = user_data.get('photo', 'skip')
+
+    for bot_config in config.bots:
+        await start_sending(state, db, bot_config, text, photo)
