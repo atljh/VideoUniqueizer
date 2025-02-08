@@ -16,13 +16,14 @@ class MyDb:
 
                 await cursor.execute("""
                     CREATE TABLE IF NOT EXISTS user(
-                        user_id INTEGER PRIMARY KEY UNIQUE NOT NULL,
+                        user_id INTEGER NOT NULL,
                         bot_id INTEGER NOT NULL,
                         username TEXT,
                         fullname TEXT,
                         last_public_time DATETIME,
                         is_active BOOLEAN,
                         processing_video BOOLEAN DEFAULT 0,
+                        PRIMARY KEY (user_id, bot_id),
                         FOREIGN KEY (bot_id) REFERENCES bots (bot_id) ON DELETE CASCADE
                     )
                 """)

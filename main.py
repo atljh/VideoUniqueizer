@@ -9,7 +9,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram_dialog import setup_dialogs
 from tgbot.config import load_config, Config
 from tgbot.handlers import routers_list
-from tgbot.handlers.user import start_dialog
+from tgbot.handlers.user import create_start_dialog
 from tgbot.middlewares.config import ConfigMiddleware
 from tgbot.middlewares.db import DbMiddleware
 from tgbot.db.database import MyDb
@@ -61,7 +61,10 @@ async def setup_database():
 
 
 async def setup_dispatcher(dp: Dispatcher, config: Config):
-    dp.include_routers(start_dialog)
+    for bot_config in config.bots:
+        start_dialog = await create_start_dialog(bot_config.token)
+        dp.include_routers(start_dialog)
+
     dp.include_routers(*routers_list)
     dp.message.outer_middleware(ConfigMiddleware(config))
     dp.callback_query.outer_middleware(ConfigMiddleware(config))

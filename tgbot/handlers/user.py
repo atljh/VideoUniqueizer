@@ -37,6 +37,13 @@ async def get_channel_id(bot_token):
     return None
 
 
+async def get_channel_url(bot_token):
+    for bot_config in config.bots:
+        if bot_token == bot_config.token:
+            return bot_config.channel_url
+    return None
+
+
 async def check_subscription_handler(callback_query: CallbackQuery, button: Button, dialog_manager: DialogManager):
     channel_id = await get_channel_id(callback_query.bot.token)
     if not channel_id:
@@ -51,16 +58,19 @@ async def check_subscription_handler(callback_query: CallbackQuery, button: Butt
         await callback_query.answer("Подпишитесь, чтобы продолжить.")
 
 
-start_dialog = Dialog(
-    Window(
-        Const("Выберите действие:"),
-        Column(
-            Url(Const("ЛЁГКИЙ ТРАФИК [TikTok, Reels, Shorts]"), Const(f"https://t.me/+n0_dB7OwktE3ZDcy"), id="subscribe"),
-            Button(Const("✅ Проверить подписку"), id="check_subscription", on_click=check_subscription_handler)
-        ),
-        state=UserState.checking_subscription
+async def create_start_dialog(bot_token):
+    channel_url = await get_channel_url(bot_token)
+    logging.info(channel_url)
+    return Dialog(
+        Window(
+            Const("Выберите действие:"),
+            Column(
+                Url(Const("ЛЁГКИЙ ТРАФИК [TikTok, Reels, Shorts]"), Const(channel_url)),
+                Button(Const("✅ Проверить подписку"), id="check_subscription", on_click=check_subscription_handler)
+            ),
+            state=UserState.checking_subscription
+        )
     )
-)
 
 
 @user_router.message(CommandStart())
