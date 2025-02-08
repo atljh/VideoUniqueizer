@@ -75,10 +75,9 @@ async def create_start_dialog(bot_token):
 
 @user_router.message(CommandStart())
 async def user_start(message: Message, db, dialog_manager: DialogManager, state: FSMContext):
-    bot_id = message.bot.id
     await db.sql_create_user(
         user_id=message.from_user.id,
-        bot_id=bot_id,
+        bot_token=message.bot.token,
         username=message.from_user.username or '',
         fullname=message.from_user.first_name or '',
         is_active=True

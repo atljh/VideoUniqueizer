@@ -29,10 +29,18 @@ class MyDb:
                 """)
 
     async def sql_create_bot(self, bot_token: str):
-        """Создаёт нового бота в базе данных"""
+        """Создаёт нового бота в базе данных, если его ещё нет"""
         async with aiosqlite.connect(self.__dbname__) as db:
-            await db.execute("INSERT OR IGNORE INTO bots (bot_token) VALUES (?)", (bot_token,))
-            await db.commit()
+            cursor = await db.execute("SELECT bot_id FROM bots WHERE bot_token = ?", (bot_token,))
+            exists = await cursor.fetchone()
+
+            if not exists:
+                cursor = await db.execute("INSERT INTO bots (bot_token) VALUES (?)", (bot_token,))
+                bot_id = cursor.lastrowid
+                await db.commit()
+                return bot_id
+            else:
+                return exists[0]
 
     async def sql_get_bot_id(self, bot_token: str):
         """Получает ID бота по его токену"""
@@ -42,7 +50,8 @@ class MyDb:
                 result = await cursor.fetchone()
                 return result[0] if result else None
 
-    async def sql_create_user(self, user_id: int, bot_id: int, username: str, fullname: str, is_active: bool):
+    async def sql_create_user(self, user_id: int, bot_token: str, username: str, fullname: str, is_active: bool):
+        bot_id = await self.sql_create_bot(bot_token)
         """Создаёт пользователя, привязанного к боту"""
         async with aiosqlite.connect(self.__dbname__) as db:
             async with db.execute("SELECT user_id FROM user WHERE user_id = ? AND bot_id = ?", (user_id, bot_id)) as cursor:

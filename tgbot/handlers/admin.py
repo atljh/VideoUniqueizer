@@ -1,14 +1,17 @@
 import asyncio
 
 from aiogram import Router, Bot, F
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import Command
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
+
 from tgbot.filters.admin_filter import IsAdmin, admins
 from tgbot.states.sending_state import SendingState
+from tgbot.config import load_config
 
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 admin_router = Router()
+config = load_config()
 
 
 admin_panel_keyboard = ReplyKeyboardMarkup(
@@ -45,10 +48,9 @@ accept_keyboard = ReplyKeyboardMarkup(
 
 @admin_router.message(Command('admin'))
 async def send_welcome(message: Message, db):
-    bot_id = message.bot.id
     await db.sql_create_user(
         user_id=message.from_user.id,
-        bot_id=bot_id,
+        bot_token=message.bot.token,
         username=message.from_user.username or '',
         fullname=message.from_user.first_name or '',
         is_active=True
@@ -60,9 +62,10 @@ async def send_welcome(message: Message, db):
 
 
 @admin_router.message(IsAdmin(), F.text == "👤 Користувачі")
-async def make_sending(message: Message, db):
-    users = await db.sql_get_users()
-    await message.reply(text=f"👥 |  {len(users)} корист.")
+async def users(message: Message, db, bot):
+    for bot_config in config.bots:
+        users = await db.sql_get_users()
+        await message.answer(text=f"👥 |  {len(users)} корист.")
 
 
 @admin_router.message(IsAdmin(), F.text == "Отмена")
