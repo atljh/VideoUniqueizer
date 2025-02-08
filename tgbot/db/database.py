@@ -63,7 +63,8 @@ class MyDb:
                     await db.commit()
                 return user_id
 
-    async def sql_get_users_by_bot(self, bot_id: int):
+    async def sql_get_users_by_bot(self, bot_token: str):
+        bot_id = await self.sql_get_bot_id(bot_token)
         """Получает список пользователей, привязанных к конкретному боту"""
         async with aiosqlite.connect(self.__dbname__) as db:
             async with db.cursor() as cursor:

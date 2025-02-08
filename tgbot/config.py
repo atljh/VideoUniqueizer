@@ -7,6 +7,7 @@ class TgBot:
     """
     Represents a Telegram bot configuration.
     """
+    username: str
     token: str
     channel_url: str
     channel_id: int
@@ -16,11 +17,12 @@ class TgBot:
         """
         Loads bot configuration from environment variables with an optional prefix.
         """
+        username = env.str(f"{prefix}BOT_USERNAME")
         token = env.str(f"{prefix}BOT_TOKEN")
         channel_url = env.str(f"{prefix}CHANNEL_URL")
         channel_id = env.int(f"{prefix}CHANNEL_ID")
 
-        return TgBot(token=token, channel_url=channel_url, channel_id=channel_id)
+        return TgBot(token=token, channel_url=channel_url, channel_id=channel_id, username=username)
 
 
 @dataclass

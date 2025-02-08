@@ -64,8 +64,8 @@ async def send_welcome(message: Message, db):
 @admin_router.message(IsAdmin(), F.text == "👤 Користувачі")
 async def users(message: Message, db, bot):
     for bot_config in config.bots:
-        users = await db.sql_get_users()
-        await message.answer(text=f"👥 |  {len(users)} корист.")
+        users = await db.sql_get_users_by_bot(bot_config.token)
+        await message.answer(text=f"👥 {bot_config.username}|  {len(users)} корист.")
 
 
 @admin_router.message(IsAdmin(), F.text == "Отмена")
