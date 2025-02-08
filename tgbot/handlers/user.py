@@ -65,15 +65,17 @@ start_dialog = Dialog(
 
 @user_router.message(CommandStart())
 async def user_start(message: Message, db, dialog_manager: DialogManager, state: FSMContext):
+    bot_id = message.bot.id
     await db.sql_create_user(
         user_id=message.from_user.id,
+        bot_id=bot_id,
         username=message.from_user.username or '',
         fullname=message.from_user.first_name or '',
         is_active=True
     )
 
-    user_id = message.from_user.id
-    processing = await db.sql_check_user_processing(user_id)
+    # user_id = message.from_user.id
+    # processing = await db.sql_check_user_processing(user_id)
     channel_id = await get_channel_id(message.bot.token)
     if not channel_id:
         return

@@ -76,8 +76,10 @@ async def main():
     setup_logging()
     config = load_config(".env")
     bots = await get_bots(config)
-    logging.info(config.admins_id)
+
     dp = Dispatcher(storage=MemoryStorage())
+    await setup_dispatcher(dp, config)
+    await setup_database()
 
     await dp.start_polling(*bots)
 

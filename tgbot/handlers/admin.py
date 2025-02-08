@@ -45,15 +45,16 @@ accept_keyboard = ReplyKeyboardMarkup(
 
 @admin_router.message(Command('admin'))
 async def send_welcome(message: Message, db):
+    bot_id = message.bot.id
     await db.sql_create_user(
         user_id=message.from_user.id,
+        bot_id=bot_id,
         username=message.from_user.username or '',
         fullname=message.from_user.first_name or '',
         is_active=True
     )
 
     if message.from_user.id in admins:
-        print(message.from_user.id in admins)
         await message.reply(text='Admin Panel:',
                             reply_markup=admin_panel_keyboard)
 
