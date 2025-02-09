@@ -134,32 +134,6 @@ async def process_video_async(video_file_id, video_path, answer, loop):
             await answer.edit_text(f"Произошла ошибка во время обработки видео: {str(e)}")
             return None
 
-
-async def handle_video_processing(message, video_file_id, video_path, answer, db):
-    global task_queue_count
-    loop = asyncio.get_running_loop()
-    bot_token = message.bot.token
-    output_path = await process_video_async(video_file_id, video_path, answer, loop)
-    if output_path:
-        try:
-            await message.bot.send_video(chat_id=message.chat.id, video=FSInputFile(path=output_path))
-            await answer.edit_text("📹 <i>Ваше видео было успешно обработано и отправлено!</i>")
-            await message.bot.send_message(chat_id=message.chat.id,
-                                           text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. Размер файла не должен превышать 20 МБ.</i>')
-
-        except Exception as e:
-            await message.answer("Произошла ошибка при отправке видео. Попробуйте позже...")
-            print(e)
-        finally:
-            await db.sql_set_user_processing(message.from_user.id, bot_token, False)
-    else:
-        await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
-    os.remove(video_path)
-    if output_path:
-        os.remove(output_path)
-    task_queue_count -= 1
-
-
 @user_router.message(MediaGroupFilter(), F.video)
 @media_group_handler
 async def handle_album(messages: List[Message]):
@@ -168,56 +142,110 @@ async def handle_album(messages: List[Message]):
         return
 
 
+task_queue = []
+queue_lock = asyncio.Lock()
+
+
 @user_router.message(F.video)
 async def video_customizing(message: Message, db, dialog_manager: DialogManager, state: FSMContext):
-    channel_id = await get_channel_id(message.bot.token)
-    if not channel_id:
-        return
-    member = await message.bot.get_chat_member(chat_id=channel_id, user_id=message.from_user.id)
-    if member.status in ['left', 'kicked']:
-        channel_url = await get_channel_url(message.bot.token)
-
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="ВСЁ ПРО АРБИТРАЖ ТРАФИКА", url=channel_url)],
-                [InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_subscription")]
-            ]
-        )
-
-        await message.answer("👇 Подпишитесь на канал:", reply_markup=keyboard)
-        await state.set_state(UserState.checking_subscription)
-        return
-    bot_token = message.bot.token
     user_id = message.from_user.id
+    bot_token = message.bot.token
+
     processing = await db.sql_check_user_processing(user_id, bot_token)
     if processing == 1:
-        await message.answer("Вы уже обрабатываете другое видео. Пожалуйста, подождите, пока оно будет завершено.")
+        await message.answer("Вы уже обрабатываете другое видео. Дождитесь завершения.")
         return
-    global task_queue_count
+
     video_file_id = message.video.file_id
     file_size = message.video.file_size
     duration = message.video.duration
 
     if file_size > 20 * 1024 * 1024:
-        await message.answer("Размер файла превышает 20 МБ. Пожалуйста, отправьте меньший файл.")
+        await message.answer("Файл слишком большой (максимум 20 МБ).")
         return
     elif duration > 60:
-        await message.answer("Длительность видео превышает 60 секунд. Пожалуйста, отправьте более короткое видео.")
+        await message.answer("Видео не должно быть длиннее 60 секунд.")
         return
+
     try:
         file = await message.bot.get_file(video_file_id)
     except Exception as e:
         logging.error(e)
-        await message.answer("Произошла ошибка при загрузке видео. Пожалуйста, попробуйте снова.")
+        await message.answer("Ошибка при загрузке видео. Попробуйте снова.")
         return
-    await db.sql_set_user_processing(user_id, bot_token, True)
-    task_queue_count += 1
+
+    async with queue_lock:
+        task_queue.append({"user_id": user_id, "file_id": video_file_id})
+        position = len(task_queue)
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Обновить позицию", callback_data="update_queue_position")]
+        ]
+    )
+
     answer = await message.answer(
-        f"🔄 Начинаем обработку вашего видео...\nВы №{task_queue_count} в очереди на обработку, ожидайте!")
+        f"🔄 Начинаем обработку...\nВы №{position} в очереди, ожидайте!",
+        reply_markup=keyboard
+    )
+
     video_path = f"videos/{video_file_id}.mp4"
     await message.bot.download(file=file, destination=video_path)
 
+    # Начинаем обработку видео в фоне
     asyncio.create_task(handle_video_processing(message, video_file_id, video_path, answer, db))
+
+
+@user_router.callback_query(lambda c: c.data == "update_queue_position")
+async def update_queue_position(callback_query: CallbackQuery):
+    user_id = callback_query.from_user.id
+
+    async with queue_lock:
+        position = next((i + 1 for i, task in enumerate(task_queue) if task["user_id"] == user_id), None)
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Обновить позицию", callback_data="update_queue_position")]
+        ]
+    )
+    if position is None:
+        await callback_query.answer("Вы не в очереди или ваша задача уже обработана.")
+    else:
+        try:
+            await callback_query.message.edit_text(f"🔄 Ваша позиция в очереди: {position}", reply_markup=keyboard)
+        except Exception:
+            pass
+
+
+async def handle_video_processing(message, video_file_id, video_path, answer, db):
+    global task_queue
+
+    loop = asyncio.get_running_loop()
+    bot_token = message.bot.token
+
+    output_path = await process_video_async(video_file_id, video_path, answer, loop)
+
+    if output_path:
+        try:
+            await message.bot.send_video(chat_id=message.chat.id, video=FSInputFile(path=output_path))
+            await answer.edit_text("📹 <i>Ваше видео было успешно обработано и отправлено!</i>")
+            await message.bot.send_message(chat_id=message.chat.id,
+                                           text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. '
+                                                'Размер файла не должен превышать 20 МБ.</i>')
+        except Exception as e:
+            await message.answer("Произошла ошибка при отправке видео. Попробуйте позже...")
+            print(e)
+        finally:
+            await db.sql_set_user_processing(message.from_user.id, bot_token, False)
+    else:
+        await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
+
+    os.remove(video_path)
+    if output_path:
+        os.remove(output_path)
+
+    async with queue_lock:
+        task_queue = [task for task in task_queue if task["file_id"] != video_file_id]
 
 
 @user_router.my_chat_member(
