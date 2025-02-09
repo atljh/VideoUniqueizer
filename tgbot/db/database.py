@@ -100,13 +100,15 @@ class MyDb:
                 last_public_time = await cursor.fetchone()
                 return last_public_time[0] if last_public_time else False
 
-    async def sql_set_user_processing(self, user_id: int, bot_id: int, processing: bool):
+    async def sql_set_user_processing(self, user_id: int, bot_token: str, processing: bool):
+        bot_id = await self.sql_get_bot_id(bot_token)
         """Устанавливает статус обработки видео пользователю"""
         async with aiosqlite.connect(self.__dbname__) as db:
             await db.execute("UPDATE user SET processing_video=? WHERE user_id=? AND bot_id=?", (processing, user_id, bot_id))
             await db.commit()
 
-    async def sql_check_user_processing(self, user_id: int, bot_id: int):
+    async def sql_check_user_processing(self, user_id: int, bot_token: str):
+        bot_id = await self.sql_get_bot_id(bot_token)
         """Проверяет, находится ли пользователь в процессе обработки видео"""
         async with aiosqlite.connect(self.__dbname__) as db:
             async with db.cursor() as cursor:

@@ -62,9 +62,9 @@ async def create_start_dialog(bot_token):
     channel_url = await get_channel_url(bot_token)
     return Dialog(
         Window(
-            Const("Выберите действие:"),
+            Const("👇 Подпишитесь на канал:"),
             Column(
-                Url(Const("ЛЁГКИЙ ТРАФИК [TikTok, Reels, Shorts]"), Const(channel_url)),
+                Url(Const("ВСЁ ПРО АРБИТРАЖ ТРАФИКА"), Const(channel_url)),
                 Button(Const("✅ Проверить подписку"), id="check_subscription", on_click=check_subscription_handler)
             ),
             state=UserState.checking_subscription
@@ -141,6 +141,7 @@ async def process_video_async(video_file_id, video_path, answer, loop):
 async def handle_video_processing(message, video_file_id, video_path, answer, db):
     global task_queue_count
     loop = asyncio.get_running_loop()
+    bot_token = message.bot.token
     output_path = await process_video_async(video_file_id, video_path, answer, loop)
     if output_path:
         try:
@@ -153,7 +154,7 @@ async def handle_video_processing(message, video_file_id, video_path, answer, db
             await message.answer("Произошла ошибка при отправке видео. Попробуйте позже...")
             print(e)
         finally:
-            await db.sql_set_user_processing(message.from_user.id, False)
+            await db.sql_set_user_processing(message.from_user.id, bot_token, False)
     else:
         await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
     os.remove(video_path)
@@ -182,9 +183,9 @@ async def video_customizing(message: Message, db, dialog_manager: DialogManager,
             state=UserState.checking_subscription, mode=StartMode.RESET_STACK
         )
         return
-
+    bot_token = message.bot.token
     user_id = message.from_user.id
-    processing = await db.sql_check_user_processing(user_id)
+    processing = await db.sql_check_user_processing(user_id, bot_token)
     if processing == 1:
         await message.answer("Вы уже обрабатываете другое видео. Пожалуйста, подождите, пока оно будет завершено.")
         return
@@ -205,7 +206,7 @@ async def video_customizing(message: Message, db, dialog_manager: DialogManager,
         logging.error(e)
         await message.answer("Произошла ошибка при загрузке видео. Пожалуйста, попробуйте снова.")
         return
-    await db.sql_set_user_processing(user_id, True)
+    await db.sql_set_user_processing(user_id, bot_token, True)
     task_queue_count += 1
     answer = await message.answer(
         f"🔄 Начинаем обработку вашего видео...\nВы №{task_queue_count} в очереди на обработку, ожидайте!")

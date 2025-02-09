@@ -71,3 +71,4 @@ cache/
 .vscode/
 
 docker-compose.yml
+*.swp

@@ -79,7 +79,7 @@ async def main():
     setup_logging()
     config = load_config(".env")
     bots = await get_bots(config)
-
+    logging.info(config.bots)
     dp = Dispatcher(storage=MemoryStorage())
     await setup_dispatcher(dp, config)
     await setup_database()
