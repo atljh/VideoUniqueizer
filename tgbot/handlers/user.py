@@ -131,7 +131,8 @@ async def process_video_async(video_file_id, video_path, answer, loop):
             logo.close()
             return output_path
         except Exception as e:
-            await answer.edit_text(f"Произошла ошибка во время обработки видео")
+            logging.error(e)
+            await answer.answer(f"Произошла ошибка во время обработки видео")
             return None
 
 @user_router.message(MediaGroupFilter(), F.video)
@@ -212,7 +213,7 @@ async def update_queue_position(callback_query: CallbackQuery):
         await callback_query.answer("Вы не в очереди или ваша задача уже обработана.")
     else:
         try:
-            await callback_query.message.edit_text(f"🔄 Ваша позиция в очереди: {position}", reply_markup=keyboard)
+            await callback_query.message.answer(f"🔄 Ваша позиция в очереди: {position}", reply_markup=keyboard)
         except Exception:
             await callback_query.message.delete()
             await callback_query.message.answer(f"🔄 Ваша позиция в очереди: {position}", reply_markup=keyboard)
