@@ -54,14 +54,17 @@ class MyDb:
         bot_id = await self.sql_create_bot(bot_token)
         """Создаёт пользователя, привязанного к боту"""
         async with aiosqlite.connect(self.__dbname__) as db:
-            async with db.execute("SELECT user_id FROM user WHERE user_id = ? AND bot_id = ?", (user_id, bot_id)) as cursor:
+            async with db.execute("SELECT 1 FROM user WHERE user_id = ? AND bot_id = ?", (user_id, bot_id)) as cursor:
                 existing_user = await cursor.fetchone()
 
-                if existing_user is None:
-                    await db.execute("INSERT INTO user (user_id, bot_id, username, fullname, is_active) VALUES (?, ?, ?, ?, ?)",
-                                    (user_id, bot_id, username, fullname, is_active))
+                if existing_user is None:  # Если пользователя нет, создаем
+                    await db.execute(
+                        "INSERT INTO user (user_id, bot_id, username, fullname, is_active) VALUES (?, ?, ?, ?, ?)",
+                        (user_id, bot_id, username, fullname, is_active)
+                    )
                     await db.commit()
-                return user_id
+            
+            return user_id
 
     async def sql_get_users_by_bot(self, bot_token: str):
         bot_id = await self.sql_get_bot_id(bot_token)

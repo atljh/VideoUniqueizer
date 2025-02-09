@@ -60,10 +60,6 @@ async def setup_database():
 
 
 async def setup_dispatcher(dp: Dispatcher, config: Config):
-    # for bot_config in config.bots:
-    #     start_dialog = await create_start_dialog(bot_config.token)
-    #     dp.include_routers(start_dialog)
-
     dp.include_routers(*routers_list)
     dp.message.outer_middleware(ConfigMiddleware(config))
     dp.callback_query.outer_middleware(ConfigMiddleware(config))
