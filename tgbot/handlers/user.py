@@ -4,10 +4,11 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
-from aiogram import Router, F
+from aiogram import Router, F, Bot, types
 from aiogram.filters import CommandStart, ChatMemberUpdatedFilter, MEMBER, KICKED
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, ChatMemberUpdated, FSInputFile, CallbackQuery
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram_dialog import Dialog, DialogManager, Window, StartMode
 from aiogram_dialog.widgets.kbd import Button, Url, Column
 from aiogram_dialog.widgets.text import Const
@@ -44,33 +45,67 @@ async def get_channel_url(bot_token):
     return None
 
 
-async def check_subscription_handler(callback_query: CallbackQuery, button: Button, dialog_manager: DialogManager):
+@user_router.callback_query(lambda c: c.data == "check_subscription")
+async def check_subscription_handler(callback_query: types.CallbackQuery):
     channel_id = await get_channel_id(callback_query.bot.token)
+    
     if not channel_id:
         return
+
     member = await callback_query.bot.get_chat_member(chat_id=channel_id, user_id=callback_query.from_user.id)
+
     if member.status not in ['left', 'kicked']:
-        await dialog_manager.done()
         await callback_query.message.answer(
-            text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. Размер файла не должен '
-                 'превышать 20 МБ.</i>')
+            "📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. "
+            "Размер файла не должен превышать 20 МБ.</i>", parse_mode="HTML"
+        )
     else:
-        await callback_query.answer("Подпишитесь, чтобы продолжить.")
+        await callback_query.answer("Подпишитесь, чтобы продолжить.", show_alert=True)
 
 
-async def create_start_dialog(bot_token):
+@user_router.message(CommandStart())
+async def cmd_start(message: types.Message):
+    bot_token = message.bot.token
     channel_url = await get_channel_url(bot_token)
     logging.info(f"{bot_token} --- {channel_url}")
-    return Dialog(
-        Window(
-            Const("👇 Подпишитесь на канал:"),
-            Column(
-                Url(Const("ВСЁ ПРО АРБИТРАЖ ТРАФИКА"), Const(channel_url)),
-                Button(Const("✅ Проверить подписку"), id="check_subscription", on_click=check_subscription_handler)
-            ),
-            state=UserState.checking_subscription
-        )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="ВСЁ ПРО АРБИТРАЖ ТРАФИКА", url=channel_url)],
+            [InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_subscription")]
+        ]
     )
+
+    await message.answer("👇 Подпишитесь на канал:", reply_markup=keyboard)
+
+
+# async def check_subscription_handler(callback_query: CallbackQuery, button: Button, dialog_manager: DialogManager):
+#     channel_id = await get_channel_id(callback_query.bot.token)
+#     if not channel_id:
+#         return
+#     member = await callback_query.bot.get_chat_member(chat_id=channel_id, user_id=callback_query.from_user.id)
+#     if member.status not in ['left', 'kicked']:
+#         await dialog_manager.done()
+#         await callback_query.message.answer(
+#             text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. Размер файла не должен '
+#                  'превышать 20 МБ.</i>')
+#     else:
+#         await callback_query.answer("Подпишитесь, чтобы продолжить.")
+
+
+# async def create_start_dialog(bot_token):
+#     channel_url = await get_channel_url(bot_token)
+#     logging.info(f"{bot_token} --- {channel_url}")
+#     return Dialog(
+#         Window(
+#             Const("👇 Подпишитесь на канал:"),
+#             Column(
+#                 Url(Const("ВСЁ ПРО АРБИТРАЖ ТРАФИКА"), Const(channel_url)),
+#                 Button(Const("✅ Проверить подписку"), id="check_subscription", on_click=check_subscription_handler)
+#             ),
+#             state=UserState.checking_subscription
+#         )
+#     )
 
 
 @user_router.message(CommandStart())
@@ -179,10 +214,17 @@ async def video_customizing(message: Message, db, dialog_manager: DialogManager,
         return
     member = await message.bot.get_chat_member(chat_id=channel_id, user_id=message.from_user.id)
     if member.status in ['left', 'kicked']:
-        await state.set_state(UserState.checking_subscription)
-        await dialog_manager.start(
-            state=UserState.checking_subscription, mode=StartMode.RESET_STACK
+        channel_url = await get_channel_url(message.bot.token)
+
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="ВСЁ ПРО АРБИТРАЖ ТРАФИКА", url=channel_url)],
+                [InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_subscription")]
+            ]
         )
+
+        await message.answer("👇 Подпишитесь на канал:", reply_markup=keyboard)
+        await state.set_state(UserState.checking_subscription)
         return
     bot_token = message.bot.token
     user_id = message.from_user.id
