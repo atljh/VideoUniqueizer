@@ -213,10 +213,9 @@ async def update_queue_position(callback_query: CallbackQuery):
         await callback_query.answer("Вы не в очереди или ваша задача уже обработана.")
     else:
         try:
-            await callback_query.message.answer(f"🔄 Ваша позиция в очереди: {position}", reply_markup=keyboard)
+            await callback_query.message.edit_text(f"🔄 Ваша позиция в очереди: {position}", reply_markup=keyboard)
         except Exception:
-            await callback_query.message.delete()
-            await callback_query.message.answer(f"🔄 Ваша позиция в очереди: {position}", reply_markup=keyboard)
+            await callback_query.message.edit_text(f"🔄 Ваша позиция в очереди {position}", reply_markup=keyboard)
 
 
 async def handle_video_processing(message, video_file_id, video_path, answer, db):
