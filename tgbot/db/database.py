@@ -80,7 +80,8 @@ class MyDb:
                 rows = await cursor.fetchall()
                 return [row[0] for row in rows]
 
-    async def sql_update_user_status(self, is_active: bool, user_id: int, bot_id: int):
+    async def sql_update_user_status(self, is_active: bool, user_id: int, bot_token: str):
+        bot_id = await self.sql_get_bot_id(bot_token)
         """Обновляет статус активности пользователя"""
         async with aiosqlite.connect(self.__dbname__) as db:
             await db.execute("UPDATE user SET is_active=? WHERE user_id=? AND bot_id=?", (is_active, user_id, bot_id))
