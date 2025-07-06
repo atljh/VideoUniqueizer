@@ -227,9 +227,6 @@ async def handle_video_processing(message: Message, video_file_id: str, video_pa
             except Exception as e:
                 logging.error(f"Error sending video: {e}")
                 await message.answer("Произошла ошибка при отправке видео. Попробуйте позже...")
-        else:
-            await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
-
     except asyncio.TimeoutError:
         pass
     except Exception as e:
@@ -239,7 +236,7 @@ async def handle_video_processing(message: Message, video_file_id: str, video_pa
         try:
             await db.sql_set_user_processing(message.from_user.id, bot_token, False)
             
-            if os.path.exists(video_path):
+            if video_path and os.path.exists(video_path):
                 os.remove(video_path)
             if output_path and os.path.exists(output_path):
                 os.remove(output_path)
@@ -249,6 +246,10 @@ async def handle_video_processing(message: Message, video_file_id: str, video_pa
 
         async with queue_lock:
             task_queue = [task for task in task_queue if task["file_id"] != video_file_id]
+            
+            current_task = next((t for t in task_queue if t["user_id"] == message.from_user.id), None)
+            if current_task:
+                task_queue.remove(current_task)
 
 # async def process_video_sync(video_file_id, video_path, answer, loop):
 #     try:
