@@ -148,52 +148,7 @@ def process_video_sync(video_file_id, video_path, answer):
         logging.error(f"Error in process_video_sync: {e}")
         raise
 
-# async def process_video_sync(video_file_id, video_path, answer, loop):
-#     try:
-#         await asyncio.sleep(1)
-#         await answer.edit_text("🔄 Разбираем видео на кадры...")
-#         await asyncio.sleep(1)
-#         clip = await loop.run_in_executor(executor, VideoFileClip, video_path)
 
-#         await answer.edit_text("🔄 Уникализируем каждый кадр...")
-#         await asyncio.sleep(1)
-#         clip = await loop.run_in_executor(executor, clip.fx, vfx.speedx, 1.02)
-
-#         await answer.edit_text("🔄 Изменяем цветовую гамму...")
-#         await asyncio.sleep(1)
-#         clip = await loop.run_in_executor(executor, clip.fx, vfx.colorx, 1.25)
-
-#         await answer.edit_text("🔄 Накладываем уникализирующую сетку...")
-#         await asyncio.sleep(1)
-#         logo = await loop.run_in_executor(executor, ImageClip, "videos/1.png")
-#         logo = logo.set_duration(clip.duration).resize(width=clip.size[0], height=clip.size[1]).set_position(
-#             "center")
-
-#         final_clip = CompositeVideoClip([clip, logo])
-#         output_path = f"videos/processed_{video_file_id}.mp4"
-#         await answer.edit_text("🔄 Собираем кадры в видео с другим битрейтом...")
-#         await asyncio.sleep(1)
-#         await answer.edit_text("🔄 Чистим метаданные, меняем исходный код видео. Это займет 1-4 минуты...")
-#         await asyncio.sleep(1)
-#         video_write_func = partial(
-#             final_clip.write_videofile,
-#             output_path,
-#             codec='libx264',
-#             preset='ultrafast',
-#             bitrate='3000k',
-#             threads=2,
-#             audio=False,
-#             logger='bar'
-#         )
-#         await loop.run_in_executor(executor, video_write_func)
-
-#         clip.close()
-#         logo.close()
-#         return output_path
-#     except Exception as e:
-#         logging.error(e)
-#         await answer.answer(f"Произошла ошибка во время обработки видео")
-#         return None
 
 @user_router.message(MediaGroupFilter(), F.video)
 @media_group_handler
