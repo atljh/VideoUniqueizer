@@ -3,6 +3,7 @@ import os
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+import time
 from typing import Optional
 
 from aiogram import Router, F, Bot, types
@@ -121,6 +122,7 @@ async def process_video_async(video_file_id: str, video_path: str, answer: Messa
             await update_status(answer, f"Произошла ошибка во время обработки видео: {str(e)}")
             return None
 
+
 def process_video_sync(video_file_id: str, video_path: str, answer: Message, loop: asyncio.AbstractEventLoop) -> Optional[str]:
     clip = None
     logo = None
@@ -129,25 +131,30 @@ def process_video_sync(video_file_id: str, video_path: str, answer: Message, loo
             update_status(answer, "🔄 Разбираем видео на кадры..."), 
             loop
         ).result()
+        time.sleep(1)
         
         clip = VideoFileClip(video_path)
+        time.sleep(1)
 
         asyncio.run_coroutine_threadsafe(
             update_status(answer, "🔄 Уникализируем каждый кадр..."), 
             loop
         ).result()
+        time.sleep(1)
         clip = clip.fx(vfx.speedx, 1.02)
 
         asyncio.run_coroutine_threadsafe(
             update_status(answer, "🔄 Изменяем цветовую гамму..."), 
             loop
         ).result()
+        time.sleep(1)
         clip = clip.fx(vfx.colorx, 1.25)
 
         asyncio.run_coroutine_threadsafe(
             update_status(answer, "🔄 Накладываем уникализирующую сетку..."), 
             loop
         ).result()
+        time.sleep(1)
         logo = ImageClip("videos/1.png")
         logo = logo.set_duration(clip.duration).resize(
             width=clip.size[0], height=clip.size[1]).set_position("center")
@@ -159,11 +166,13 @@ def process_video_sync(video_file_id: str, video_path: str, answer: Message, loo
             update_status(answer, "🔄 Собираем кадры в видео с другим битрейтом..."), 
             loop
         ).result()
+        time.sleep(1)
         
         asyncio.run_coroutine_threadsafe(
             update_status(answer, "🔄 Чистим метаданные, меняем исходный код видео. Это займет 1-4 минуты..."), 
             loop
         ).result()
+        time.sleep(1)
 
         final_clip.write_videofile(
             output_path,
@@ -181,7 +190,6 @@ def process_video_sync(video_file_id: str, video_path: str, answer: Message, loo
         logging.error(f"Error in process_video_sync: {e}")
         raise
     finally:
-        # Всегда освобождаем ресурсы
         if clip is not None:
             try:
                 clip.close()
@@ -193,6 +201,7 @@ def process_video_sync(video_file_id: str, video_path: str, answer: Message, loo
                 logo.close()
             except Exception as e:
                 logging.error(f"Error closing logo: {e}")
+
 
 async def handle_video_processing(message: Message, video_file_id: str, video_path: str, answer: Message, db):
     global task_queue
