@@ -121,7 +121,8 @@ async def process_video_async(video_file_id: str, video_path: str, answer: Messa
             logging.error(f"Error processing video {video_file_id}: {e}")
             await update_status(answer, f"Произошла ошибка во время обработки видео: {str(e)}")
             return None
-
+        finally:
+            pass
 
 def process_video_sync(video_file_id: str, video_path: str, answer: Message, loop: asyncio.AbstractEventLoop) -> Optional[str]:
     clip = None
@@ -201,55 +202,6 @@ def process_video_sync(video_file_id: str, video_path: str, answer: Message, loo
                 logo.close()
             except Exception as e:
                 logging.error(f"Error closing logo: {e}")
-
-
-async def handle_video_processing(message: Message, video_file_id: str, video_path: str, answer: Message, db):
-    global task_queue
-    bot_token = message.bot.token
-    output_path = None
-
-    try:
-        loop = asyncio.get_running_loop()
-        output_path = await process_video_async(video_file_id, video_path, answer, loop)
-        
-        if output_path:
-            try:
-                await message.bot.send_video(
-                    chat_id=message.chat.id, 
-                    video=FSInputFile(path=output_path)
-                )
-                await update_status(answer, "📹 <i>Ваше видео было успешно обработано и отправлено!</i>")
-                await message.bot.send_message(
-                    chat_id=message.chat.id,
-                    text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. '
-                         'Размер файла не должен превышать 20 МБ.</i>'
-                )
-            except Exception as e:
-                logging.error(f"Error sending video: {e}")
-                await message.answer("Произошла ошибка при отправке видео. Попробуйте позже...")
-    except asyncio.TimeoutError:
-        pass
-    except Exception as e:
-        logging.error(f"Error in handle_video_processing: {e}")
-        await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
-    finally:
-        try:
-            await db.sql_set_user_processing(message.from_user.id, bot_token, False)
-            
-            if video_path and os.path.exists(video_path):
-                os.remove(video_path)
-            if output_path and os.path.exists(output_path):
-                os.remove(output_path)
-                
-        except Exception as e:
-            logging.error(f"Error in cleanup: {e}")
-
-        async with queue_lock:
-            task_queue = [task for task in task_queue if task["file_id"] != video_file_id]
-            
-            current_task = next((t for t in task_queue if t["user_id"] == message.from_user.id), None)
-            if current_task:
-                task_queue.remove(current_task)
 
 
 @user_router.message(MediaGroupFilter(), F.video)
@@ -380,12 +332,13 @@ async def handle_video_processing(message, video_file_id, video_path, answer, db
             if output_path and os.path.exists(output_path):
                 os.remove(output_path)
 
+            async with queue_lock:
+                task_queue = [task for task in task_queue if task["file_id"] != video_file_id]
+                logging.info(f"🧹 Задача {video_file_id} удалена из очереди")
+
         except Exception as e:
             logging.error(f"Error in cleanup: {e}")
 
-        async with queue_lock:
-            task_queue = [task for task in task_queue if task["file_id"] != video_file_id]
-            logging.info(f"🧹 Задача {video_file_id} удалена из очереди")
 
 
 @user_router.my_chat_member(
