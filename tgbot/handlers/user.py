@@ -95,53 +95,78 @@ async def user_start(message: Message, db, dialog_manager: DialogManager, state:
             text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. Размер файла не должен превышать 20 МБ.</i>')
 
 
+import tempfile
+import subprocess
+
 async def process_video_async(video_file_id, video_path, answer, loop):
     async with semaphore:
+        temp_dir = tempfile.mkdtemp()
+        raw_output = os.path.join(temp_dir, f"{video_file_id}_raw.mp4")
+        final_output = f"videos/processed_{video_file_id}.mp4"
+
         try:
-            await asyncio.sleep(1)
             await answer.edit_text("🔄 Разбираем видео на кадры...")
-            await asyncio.sleep(1)
             clip = await loop.run_in_executor(executor, VideoFileClip, video_path)
 
             await answer.edit_text("🔄 Уникализируем каждый кадр...")
-            await asyncio.sleep(1)
             clip = await loop.run_in_executor(executor, clip.fx, vfx.speedx, 1.02)
 
             await answer.edit_text("🔄 Изменяем цветовую гамму...")
-            await asyncio.sleep(1)
             clip = await loop.run_in_executor(executor, clip.fx, vfx.colorx, 1.25)
 
             await answer.edit_text("🔄 Накладываем уникализирующую сетку...")
-            await asyncio.sleep(1)
             logo = await loop.run_in_executor(executor, ImageClip, "videos/1.png")
-            logo = logo.set_duration(clip.duration).resize(width=clip.size[0], height=clip.size[1]).set_position(
-                "center")
+            logo = logo.set_duration(clip.duration).resize(width=clip.size[0], height=clip.size[1]).set_position("center")
 
             final_clip = CompositeVideoClip([clip, logo])
-            output_path = f"videos/processed_{video_file_id}.mp4"
-            await answer.edit_text("🔄 Собираем кадры в видео с другим битрейтом...")
-            await asyncio.sleep(1)
-            await answer.edit_text("🔄 Чистим метаданные, меняем исходный код видео. Это займет 1-4 минуты...")
-            await asyncio.sleep(1)
-            video_write_func = partial(
-                final_clip.write_videofile,
-                output_path,
-                codec='libx264',
-                preset='ultrafast',
-                bitrate='3000k',
-                threads=2,
-                audio=False,
-                logger='bar'
+
+            await answer.edit_text("💾 Сохраняем промежуточное видео...")
+            await loop.run_in_executor(
+                executor,
+                partial(final_clip.write_videofile, raw_output, codec='libx264', preset='ultrafast', bitrate='2000k', audio=False, logger=None)
             )
-            await loop.run_in_executor(executor, video_write_func)
 
             clip.close()
             logo.close()
-            return output_path
-        except Exception as e:
-            logging.error(e)
-            await answer.answer(f"Произошла ошибка во время обработки видео")
+            final_clip.close()
+
+            await answer.edit_text("🔄 Чистим метаданные, меняем исходный код видео. Это займет 1-4 минуты...")
+
+            def encode_ffmpeg(input_path, output_path):
+                subprocess.run([
+                    "ffmpeg", "-y",
+                    "-i", input_path,
+                    "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2",
+                    "-c:v", "libx264",
+                    "-preset", "ultrafast",
+                    "-b:v", "1500k",
+                    output_path
+                ], check=True, timeout=180)
+
+            await loop.run_in_executor(executor, encode_ffmpeg, raw_output, final_output)
+
+            return final_output
+
+        except subprocess.TimeoutExpired:
+            await answer.edit_text("⛔ Видео повреждено")
             return None
+
+        except Exception as e:
+            logging.exception("Ошибка обработки видео:")
+            await answer.edit_text("❌ Ошибка при обработке видео.")
+            return None
+
+        finally:
+            try:
+                if os.path.exists(raw_output):
+                    os.remove(raw_output)
+                if os.path.exists(video_path):
+                    os.remove(video_path)
+                if os.path.exists(temp_dir):
+                    os.rmdir(temp_dir)
+            except Exception:
+                pass
+
 
 @user_router.message(MediaGroupFilter(), F.video)
 @media_group_handler
