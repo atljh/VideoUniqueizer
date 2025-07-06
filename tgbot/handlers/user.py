@@ -155,14 +155,11 @@ def process_video_sync(video_file_id: str, video_path: str, answer: Message, loo
             loop
         ).result()
         
-        # Добавляем параметры для обработки битых видео
         clip = VideoFileClip(video_path, 
                            fps_source='fps',
                            verbose=False,
-                           audio=False,
-                           ffmpeg_params=['-loglevel', 'error'])
+                           audio=False)
         
-        # Проверяем валидность видео
         if not clip.reader or clip.reader.lastread is None:
             raise ValueError("Invalid video file - cannot read frames")
 
