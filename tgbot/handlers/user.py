@@ -123,8 +123,16 @@ async def process_video_async(video_file_id, video_path, answer, loop):
             await asyncio.sleep(1)
             await answer.edit_text("🔄 Чистим метаданные, меняем исходный код видео. Это займет 1-4 минуты...")
             await asyncio.sleep(1)
-            video_write_func = partial(final_clip.write_videofile, output_path, codec='libx264', preset='slow',
-                                       bitrate='5000k')
+            video_write_func = partial(
+                final_clip.write_videofile,
+                output_path,
+                codec='libx264',
+                preset='ultrafast',
+                bitrate='3000k',
+                threads=2,
+                audio=False,
+                logger='bar'
+            )
             await loop.run_in_executor(executor, video_write_func)
 
             clip.close()
@@ -224,7 +232,14 @@ async def handle_video_processing(message, video_file_id, video_path, answer, db
     loop = asyncio.get_running_loop()
     bot_token = message.bot.token
 
-    output_path = await process_video_async(video_file_id, video_path, answer, loop)
+    try:
+        output_path = await asyncio.wait_for(
+            process_video_async(video_file_id, video_path, answer, loop),
+            timeout=300
+        )
+    except asyncio.TimeoutError:
+        await answer.edit_text("⛔ Видео слишком долго обрабатывается. Проверьте, что оно не повреждено.")
+        return
 
     if output_path:
         try:
