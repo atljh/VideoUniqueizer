@@ -108,11 +108,9 @@ async def update_status(answer: Message, text: str):
 
 
 def cancel_stuck_task(video_file_id: str):
-    """Принудительное завершение зависшей задачи"""
     if video_file_id in active_tasks:
         thread = active_tasks[video_file_id]
         try:
-            # Опасная операция, но необходима для прерывания зависших задач
             thread._Thread__stop()
             logging.warning(f"Принудительно завершен поток для видео {video_file_id}")
         except Exception as e:
@@ -139,7 +137,6 @@ async def process_video_async(video_file_id: str, video_path: str, answer: Messa
             await update_status(answer, f"Произошла ошибка во время обработки видео: {str(e)}")
             return None
         finally:
-            # Гарантируем освобождение семафора
             pass
 
 
@@ -236,7 +233,6 @@ async def handle_album(messages: List[Message]):
 
 
 async def cleanup_resources(video_path: str, output_path: Optional[str]):
-    """Очистка временных файлов"""
     try:
         if video_path and os.path.exists(video_path):
             os.remove(video_path)
@@ -355,7 +351,7 @@ async def handle_video_processing(message, video_file_id, video_path, answer, db
                 logging.error(f"Error sending video: {e}")
                 await message.answer("Произошла ошибка при отправке видео. Попробуйте позже...")
     except asyncio.TimeoutError:
-        pass  # Сообщение уже отправлено в process_video_async
+        pass
     except Exception as e:
         logging.error(f"Error in handle_video_processing: {e}")
         await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
@@ -385,19 +381,16 @@ async def user_unblocked_bot(event: ChatMemberUpdated, db):
 
 
 async def monitor_tasks():
-    """Фоновая задача для мониторинга зависших процессов"""
     while True:
         await asyncio.sleep(60)
         now = time.time()
         async with queue_lock:
             for task in task_queue[:]:
-                # Если задача висит слишком долго, удаляем ее
                 if "start_time" in task and (now - task["start_time"]) > PROCESSING_TIMEOUT * 2:
                     logging.warning(f"Удаляем зависшую задачу {task['file_id']}")
                     cancel_stuck_task(task["file_id"])
                     task_queue.remove(task)
 
 
-# Запускаем мониторинг при старте
 async def on_startup():
     asyncio.create_task(monitor_tasks())
