@@ -3,6 +3,7 @@ import os
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+from typing import Optional
 
 from aiogram import Router, F, Bot, types
 from aiogram.filters import CommandStart, ChatMemberUpdatedFilter, MEMBER, KICKED
@@ -95,34 +96,58 @@ async def user_start(message: Message, db, dialog_manager: DialogManager, state:
         await message.answer(
             text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. Размер файла не должен превышать 20 МБ.</i>')
 
-async def process_video_async(video_file_id, video_path, answer, loop):
+async def update_status(answer: Message, text: str):
+    try:
+        await answer.edit_text(text)
+    except Exception as e:
+        logging.error(f"Error updating status: {e}")
+
+async def process_video_async(video_file_id: str, video_path: str, answer: Message, loop: asyncio.AbstractEventLoop):
     async with semaphore:
         try:
             future = loop.run_in_executor(
                 executor, 
-                partial(process_video_sync, video_file_id, video_path, answer)
+                partial(process_video_sync, video_file_id, video_path, answer, loop)
             )
             
-            output_path = await asyncio.wait_for(future, timeout=PROCESSING_TIMEOUT)
-            return output_path
+            return await asyncio.wait_for(future, timeout=PROCESSING_TIMEOUT)
             
         except asyncio.TimeoutError:
             logging.error(f"Timeout processing video {video_file_id}")
+            await update_status(answer, "⛔ Видео слишком долго обрабатывается. Проверьте, что оно не повреждено.")
             raise
         except Exception as e:
             logging.error(f"Error processing video {video_file_id}: {e}")
-            await answer.edit_text(f"Произошла ошибка во время обработки видео: {str(e)}")
+            await update_status(answer, f"Произошла ошибка во время обработки видео: {str(e)}")
             return None
 
-
-def process_video_sync(video_file_id, video_path, answer):
+def process_video_sync(video_file_id: str, video_path: str, answer: Message, loop: asyncio.AbstractEventLoop) -> Optional[str]:
+    clip = None
+    logo = None
     try:
+        asyncio.run_coroutine_threadsafe(
+            update_status(answer, "🔄 Разбираем видео на кадры..."), 
+            loop
+        ).result()
+        
         clip = VideoFileClip(video_path)
 
+        asyncio.run_coroutine_threadsafe(
+            update_status(answer, "🔄 Уникализируем каждый кадр..."), 
+            loop
+        ).result()
         clip = clip.fx(vfx.speedx, 1.02)
-        
+
+        asyncio.run_coroutine_threadsafe(
+            update_status(answer, "🔄 Изменяем цветовую гамму..."), 
+            loop
+        ).result()
         clip = clip.fx(vfx.colorx, 1.25)
 
+        asyncio.run_coroutine_threadsafe(
+            update_status(answer, "🔄 Накладываем уникализирующую сетку..."), 
+            loop
+        ).result()
         logo = ImageClip("videos/1.png")
         logo = logo.set_duration(clip.duration).resize(
             width=clip.size[0], height=clip.size[1]).set_position("center")
@@ -130,6 +155,16 @@ def process_video_sync(video_file_id, video_path, answer):
         final_clip = CompositeVideoClip([clip, logo])
         output_path = f"videos/processed_{video_file_id}.mp4"
         
+        asyncio.run_coroutine_threadsafe(
+            update_status(answer, "🔄 Собираем кадры в видео с другим битрейтом..."), 
+            loop
+        ).result()
+        
+        asyncio.run_coroutine_threadsafe(
+            update_status(answer, "🔄 Чистим метаданные, меняем исходный код видео. Это займет 1-4 минуты..."), 
+            loop
+        ).result()
+
         final_clip.write_videofile(
             output_path,
             codec='libx264',
@@ -140,15 +175,118 @@ def process_video_sync(video_file_id, video_path, answer):
             logger='bar'
         )
 
-        clip.close()
-        logo.close()
         return output_path
         
     except Exception as e:
         logging.error(f"Error in process_video_sync: {e}")
         raise
+    finally:
+        # Всегда освобождаем ресурсы
+        if clip is not None:
+            try:
+                clip.close()
+            except Exception as e:
+                logging.error(f"Error closing clip: {e}")
+        
+        if logo is not None:
+            try:
+                logo.close()
+            except Exception as e:
+                logging.error(f"Error closing logo: {e}")
 
+async def handle_video_processing(message: Message, video_file_id: str, video_path: str, answer: Message, db):
+    global task_queue
+    bot_token = message.bot.token
+    output_path = None
 
+    try:
+        loop = asyncio.get_running_loop()
+        output_path = await process_video_async(video_file_id, video_path, answer, loop)
+        
+        if output_path:
+            try:
+                await message.bot.send_video(
+                    chat_id=message.chat.id, 
+                    video=FSInputFile(path=output_path)
+                )
+                await update_status(answer, "📹 <i>Ваше видео было успешно обработано и отправлено!</i>")
+                await message.bot.send_message(
+                    chat_id=message.chat.id,
+                    text='📹 <i>Пожалуйста, отправьте видео, которое вы хотели бы обработать. '
+                         'Размер файла не должен превышать 20 МБ.</i>'
+                )
+            except Exception as e:
+                logging.error(f"Error sending video: {e}")
+                await message.answer("Произошла ошибка при отправке видео. Попробуйте позже...")
+        else:
+            await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
+
+    except asyncio.TimeoutError:
+        pass
+    except Exception as e:
+        logging.error(f"Error in handle_video_processing: {e}")
+        await message.answer("Произошла ошибка при обработке видео. Попробуйте позже...")
+    finally:
+        try:
+            await db.sql_set_user_processing(message.from_user.id, bot_token, False)
+            
+            if os.path.exists(video_path):
+                os.remove(video_path)
+            if output_path and os.path.exists(output_path):
+                os.remove(output_path)
+                
+        except Exception as e:
+            logging.error(f"Error in cleanup: {e}")
+
+        async with queue_lock:
+            task_queue = [task for task in task_queue if task["file_id"] != video_file_id]
+
+# async def process_video_sync(video_file_id, video_path, answer, loop):
+#     try:
+#         await asyncio.sleep(1)
+#         await answer.edit_text("🔄 Разбираем видео на кадры...")
+#         await asyncio.sleep(1)
+#         clip = await loop.run_in_executor(executor, VideoFileClip, video_path)
+
+#         await answer.edit_text("🔄 Уникализируем каждый кадр...")
+#         await asyncio.sleep(1)
+#         clip = await loop.run_in_executor(executor, clip.fx, vfx.speedx, 1.02)
+
+#         await answer.edit_text("🔄 Изменяем цветовую гамму...")
+#         await asyncio.sleep(1)
+#         clip = await loop.run_in_executor(executor, clip.fx, vfx.colorx, 1.25)
+
+#         await answer.edit_text("🔄 Накладываем уникализирующую сетку...")
+#         await asyncio.sleep(1)
+#         logo = await loop.run_in_executor(executor, ImageClip, "videos/1.png")
+#         logo = logo.set_duration(clip.duration).resize(width=clip.size[0], height=clip.size[1]).set_position(
+#             "center")
+
+#         final_clip = CompositeVideoClip([clip, logo])
+#         output_path = f"videos/processed_{video_file_id}.mp4"
+#         await answer.edit_text("🔄 Собираем кадры в видео с другим битрейтом...")
+#         await asyncio.sleep(1)
+#         await answer.edit_text("🔄 Чистим метаданные, меняем исходный код видео. Это займет 1-4 минуты...")
+#         await asyncio.sleep(1)
+#         video_write_func = partial(
+#             final_clip.write_videofile,
+#             output_path,
+#             codec='libx264',
+#             preset='ultrafast',
+#             bitrate='3000k',
+#             threads=2,
+#             audio=False,
+#             logger='bar'
+#         )
+#         await loop.run_in_executor(executor, video_write_func)
+
+#         clip.close()
+#         logo.close()
+#         return output_path
+#     except Exception as e:
+#         logging.error(e)
+#         await answer.answer(f"Произошла ошибка во время обработки видео")
+#         return None
 
 @user_router.message(MediaGroupFilter(), F.video)
 @media_group_handler
